@@ -153,8 +153,8 @@
         <div style="text-align:center; margin-bottom:15px; color:#444; font-size:10px;">DOMINATION FREEZE V240</div>
         <div style="margin-bottom:10px;"><label>NOME POSTAZIONE:</label><input type="text" id="dev-name" placeholder="ES: OBIETTIVO 1" style="text-align:center; font-weight:bold; color:white; text-transform:uppercase;" onchange="saveName()"></div>
         
-        <button class="menu-btn" onclick="openConf()">CONFIGURAZIONE (MASTER)</button>
-        <button class="menu-btn btn-gray" onclick="openSpectator()">SPETTATORE (Monitor)</button>
+        <button class="menu-btn" onclick="activateImmersion(); openConf()">CONFIGURAZIONE (MASTER)</button>
+        <button class="menu-btn btn-gray" onclick="activateImmersion(); openSpectator()">SPETTATORE (Monitor)</button>
         
         <div style="margin-top:10px;"><label>ADMIN PIN:</label><input type="password" id="admin-pass" value="0000" style="text-align:center;"></div>
     </div>
@@ -792,5 +792,6 @@
 </body>
 
 </html>
+
 
 
