@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Softair OS V240 - FREEZE LOGIC</title>
+<style>
+    /* --- STILI BASE (V230) --- */
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; font-family: 'Courier New', monospace; touch-action: manipulation; }
+    html, body { background-color: #050505; color: #0f0; margin: 0; height: 100%; width: 100%; overflow: hidden; display: flex; justify-content: center; align-items: center; position: fixed; }
+    #phone-frame { width: 100%; max-width: 450px; height: 100%; max-height: 900px; background-color: #000; border: 2px solid #333; display: flex; flex-direction: column; position: relative; overflow: hidden; box-shadow: 0 0 50px rgba(0,255,0,0.1); }
+
+    .view-screen { display: none; height: 100%; width: 100%; flex-direction: column; padding: 15px; overflow-y: auto; background: #111; }
+    .active { display: flex; }
+    .hidden { display: none !important; }
+
+    /* STATUS BAR */
+    #status-bar { height: 30px; background: #000; color: #444; font-size: 10px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border-bottom: 1px solid #222; flex-shrink: 0; }
+    #btn-exit-game { font-size: 18px; color: #888; cursor: pointer; padding: 0 10px; font-weight: bold; border-right: 1px solid #333; margin-right: 10px; }
+    
+    /* TEAM COLORS */
+    .c-alpha { color: #f55; } .c-bravo { color: #55f; } .c-charlie { color: #0f0; } .c-delta { color: #ff0; } .c-neu { color: #888; }
+    .bg-alpha { background: #900; } .bg-bravo { background: #009; } .bg-charlie { background: #050; } .bg-delta { background: #770; }
+    .fill-alpha { background: #f33; box-shadow: 0 0 10px #f00; }
+    .fill-bravo { background: #33f; box-shadow: 0 0 10px #00f; }
+    .fill-charlie { background: #0f0; box-shadow: 0 0 10px #0f0; }
+    .fill-delta { background: #ff0; box-shadow: 0 0 10px #ff0; }
+
+    /* LCD PANEL */
+    #lcd-panel { background: radial-gradient(circle, #001a00 0%, #000 100%); border-bottom: 4px solid #222; height: 32%; flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; transition: background 0.3s; position: relative; z-index: 10; padding-top: 15px; }
+    #lcd-1 { font-size: 12px; color: #0a0; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; width: 100%; text-align: center; }
+    #lcd-2 { font-size: 30px; font-weight: bold; color: #dfd; line-height: 1.0; text-shadow: 0 0 15px #0f0; font-family: sans-serif; text-align:center; margin: 5px 0; }
+    #lcd-timer-big { font-size: 22px; color: #fff; font-weight: 900; text-shadow: 0 0 10px #fff; margin: 10px 0; font-family: 'Courier New', monospace; letter-spacing: -1px; }
+    #lcd-3 { font-size: 12px; font-weight: bold; color: #ff0; margin-top: auto; letter-spacing: 1px; min-height: 20px; text-shadow: 0 0 5px #ff0; width:100%; text-align:center; padding-bottom:5px; white-space: pre-wrap;}
+    
+    body.owner-alpha #lcd-panel { background: radial-gradient(circle, #300 0%, #000 100%); } body.owner-alpha #lcd-2 { color: #f55; text-shadow: 0 0 15px #f00; }
+    body.owner-bravo #lcd-panel { background: radial-gradient(circle, #003 0%, #000 100%); } body.owner-bravo #lcd-2 { color: #55f; text-shadow: 0 0 15px #00f; }
+    body.owner-charlie #lcd-panel { background: radial-gradient(circle, #030 0%, #000 100%); } body.owner-charlie #lcd-2 { color: #0f0; text-shadow: 0 0 15px #0f0; }
+    body.owner-delta #lcd-panel { background: radial-gradient(circle, #330 0%, #000 100%); } body.owner-delta #lcd-2 { color: #ff0; text-shadow: 0 0 15px #ff0; }
+
+    #prog-bar-box { width: 90%; height: 16px; background: #222; border: 2px solid #555; margin-top: 5px; display: none; border-radius: 8px; overflow: hidden; position:absolute; bottom: 10px; z-index: 20; left: 5%; }
+    #prog-bar-fill { height: 100%; width: 0%; background: #ff0; transition: width 0.05s linear; box-shadow: 0 0 15px #ff0; }
+
+    /* SCORE BARS HUD */
+    #score-bars-container { width: 100%; padding: 8px 5px; background: #080808; border-bottom: 1px solid #333; display: flex; flex-direction: column; gap: 4px; }
+    .sb-row { display: flex; align-items: center; width: 100%; height: 16px; }
+    .sb-label { width: 25px; font-size: 9px; font-weight: bold; text-align: center; }
+    .sb-track { flex-grow: 1; height: 100%; background: #1a1a1a; border: 1px solid #333; position: relative; margin: 0 5px; }
+    .sb-fill { height: 100%; width: 0%; transition: width 0.5s; opacity: 0.8; }
+    .sb-val { font-size: 9px; width: 30px; text-align: right; color: #fff; font-weight: bold; }
+
+    /* CONFIG UI */
+    .menu-btn { background: linear-gradient(90deg, #1a1a1a 0%, #222 100%); border: 1px solid #0f0; border-left: 5px solid #0f0; color: #0f0; padding: 15px; margin-bottom: 10px; width: 100%; font-size: 16px; font-weight: bold; text-align: left; border-radius: 2px; cursor: pointer; }
+    .conf-section { border: 1px solid #333; padding: 10px; margin-bottom: 15px; background: #0a0a0a; }
+    label { color: #888; display: block; margin-top: 10px; font-size: 11px; }
+    select, input { background: #222; color: white; border: 1px solid #444; padding: 8px; width: 100%; font-size: 14px; margin-bottom: 5px; }
+    .btn-red { background: #900; border-color: red; } .btn-gray { background: #333; border-color: #555; }
+
+    /* TOGGLE SWITCH */
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 10px; border: 1px solid #333; margin-top: 10px; }
+    .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px; border: 2px solid #555; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #0f0; border-color: #0f0; }
+    input:checked + .slider:before { transform: translateX(24px); }
+
+    /* CAPTURE BUTTONS */
+    #capture-area { display: flex; flex-direction: column; flex-grow: 1; padding: 5px 0; gap: 8px; margin-top:5px; }
+    .cap-btn { flex: 1; border: 2px solid #444; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; text-transform: uppercase; color: #fff; text-shadow: 2px 2px 0 #000; cursor: pointer; transition: transform 0.1s; position: relative; overflow:hidden; }
+    .cap-btn:active { transform: scale(0.98); }
+    .cap-btn.b-alpha { background: linear-gradient(135deg, #600, #300); border-color: #f00; box-shadow: 0 4px 0 #400; }
+    .cap-btn.b-bravo { background: linear-gradient(135deg, #006, #003); border-color: #00f; box-shadow: 0 4px 0 #004; }
+    .cap-btn.b-charlie { background: linear-gradient(135deg, #060, #030); border-color: #0f0; box-shadow: 0 4px 0 #040; }
+    .cap-btn.b-delta { background: linear-gradient(135deg, #660, #330); border-color: #ff0; color: #fff; box-shadow: 0 4px 0 #440; }
+
+    /* PAGINE FULL SCREEN */
+    .fs-page { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+    .bg-grey { background-color: #222; color: #ccc; }
+    .big-msg { font-size: 40px; font-weight: bold; margin-bottom: 20px; }
+    .sub-msg { font-size: 20px; color: #fff; margin-bottom: 40px; }
+
+    /* ASSASSIN OVERLAY */
+    #ass-overlay { position: absolute; top:0; left:0; width:100%; height:100%; z-index:200; background:rgba(50,0,0,0.95); display:none; flex-direction:column; justify-content:center; align-items:center; border: 4px solid red; text-align:center; padding:10px; }
+    .ass-btn { width: 90%; padding: 20px; margin: 10px 0; font-size: 24px; font-weight: bold; border: 2px solid white; cursor: pointer; text-align: center; background: #000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+    #ass-dest { font-size:18px; color:orange; margin:10px 0; font-weight:bold; border-bottom:1px solid orange; padding-bottom:5px; width:100%; }
+
+    /* SPECTATOR */
+    #spec-scores-dom { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; margin-bottom: 20px; background:#000; padding:5px; border:1px solid #333; gap:2px; }
+    .dom-score { text-align: center; font-size: 10px; font-weight: bold; padding: 5px; border:1px solid #222; }
+    .dom-score span { display: block; font-size: 20px; margin-top: 2px; }
+    .ds-alpha { color: #f55; } .ds-bravo { color: #55f; } .ds-charlie { color: #0f0; } .ds-delta { color: #ff0; }
+    .hidden-score { display: none !important; }
+    #spec-grid { display: grid; grid-template-columns: 1fr; gap: 8px; width: 100%; overflow-y: auto; }
+    .spec-card { background: #111; border: 1px solid #333; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .spec-card-left { font-size: 14px; font-weight: bold; color: #fff; }
+    .spec-card-right { font-size: 14px; font-weight: bold; text-transform: uppercase; padding: 5px 10px; border-radius: 4px; border: 1px solid transparent; min-width: 100px; text-align: center; }
+    .sp-locked { color: #555; border-color: #333; background: #111; }
+    .sp-active-neutral { color: #fff; border-color: #666; background: #333; }
+    .sp-active-alpha { color: #fff; background: #900; border-color: #f00; }
+    .sp-active-bravo { color: #fff; background: #009; border-color: #00f; }
+    .sp-active-charlie { color: #fff; background: #050; border-color: #0f0; }
+    .sp-active-delta { color: #fff; background: #770; border-color: #ff0; }
+</style>
+</head>
+<body>
+
+<div id="phone-frame">
+    <div id="status-bar">
+        <div style="display:flex; align-items:center;">
+            <div id="btn-exit-game" onclick="adminForceReset()">&lt;</div>
+        </div>
+        <div style="color:#666;">V240</div>
+    </div>
+
+    <div id="lcd-panel">
+        <div id="lcd-1">SISTEMA</div>
+        <div id="lcd-2">PRONTO</div>
+        <div id="lcd-timer-big">--:--</div>
+        <div id="lcd-3"></div>
+        <div id="prog-bar-box"><div id="prog-bar-fill"></div></div>
+    </div>
+
+    <div id="score-bars-container" class="hidden"></div>
+
+    <div id="page-locked" class="fs-page bg-grey" style="z-index: 90;">
+        <div class="big-msg">STANDBY</div>
+        <div class="sub-msg">POSTAZIONE BLOCCATA</div>
+    </div>
+
+    <div id="page-end" class="fs-page bg-grey">
+        <div class="big-msg" id="end-winner">FINE</div>
+        <div class="sub-msg" id="end-scores"></div>
+        <button class="menu-btn btn-gray" onclick="adminForceReset()">TORNA AL MENU</button>
+    </div>
+
+    <div id="ass-overlay">
+        <h1 style="color:white; margin-bottom:5px; text-shadow: 0 0 10px black;">ASSASSINIO</h1>
+        <h2 id="ass-target" style="color:yellow; border:2px dashed yellow; padding:10px; font-size:28px; background: rgba(0,0,0,0.5);">TARGET</h2>
+        <div id="ass-dest">DESTINAZIONE: ???</div>
+        <div id="ass-timer" style="color:red; font-size:60px; margin:10px; font-weight:bold; text-shadow:0 0 10px red;">00:00</div>
+        <div class="ass-btn" style="color:red; border-color:red;" onclick="resolveAssassin(true)">💀 UCCISO</div>
+        <div class="ass-btn" style="color:#0f0; border-color:#0f0;" onclick="resolveAssassin(false)">🛡️ SALVATO</div>
+    </div>
+
+    <div id="screen-menu" class="view-screen active">
+        <div style="text-align:center; margin-bottom:15px; color:#444; font-size:10px;">DOMINATION FREEZE V240</div>
+        <div style="margin-bottom:10px;"><label>NOME POSTAZIONE:</label><input type="text" id="dev-name" placeholder="ES: OBIETTIVO 1" style="text-align:center; font-weight:bold; color:white; text-transform:uppercase;" onchange="saveName()"></div>
+        
+        <button class="menu-btn" onclick="openConf()">CONFIGURAZIONE (MASTER)</button>
+        <button class="menu-btn btn-gray" onclick="openSpectator()">SPETTATORE (Monitor)</button>
+        
+        <div style="margin-top:10px;"><label>ADMIN PIN:</label><input type="password" id="admin-pass" value="0000" style="text-align:center;"></div>
+    </div>
+
+    <div id="screen-conf" class="view-screen">
+        <button onclick="goHome()" class="menu-btn btn-gray">&lt; INDIETRO</button>
+        
+        <div class="conf-section">
+            <label style="color:white;">NUMERO SQUADRE:</label>
+            <select id="cfg-teams"><option value="2">2 SQUADRE (ALPHA / BRAVO)</option><option value="3">3 SQUADRE (+ CHARLIE)</option><option value="4">4 SQUADRE (+ DELTA)</option></select>
+        </div>
+
+        <div class="conf-section">
+            <label style="color:cyan;">MODALITÀ DI GIOCO:</label>
+            <select id="cfg-mode" onchange="updateCfgUI()">
+                <option value="simul">SIMULTANEO (Guerra Totale)</option>
+                <option value="sequence">STAFFETTA (Sequenziale)</option>
+                <option value="master">MASTER (Solo questa postazione)</option>
+            </select>
+            
+            <div id="div-seq-opts" class="hidden" style="border-left: 2px solid orange; padding-left: 10px; margin-top:5px;">
+                <label style="color:orange;">CAMBIO POSTAZIONE:</label>
+                <select id="cfg-seq-type">
+                    <option value="time">TEMPO FISSO (es. ogni 5 min)</option>
+                    <option value="conquest">CONQUISTA (Dopo X min possesso)</option>
+                </select>
+                <label>VALORE CAMBIO (Minuti):</label><input type="number" id="cfg-seq-val" value="5">
+            </div>
+        </div>
+
+        <div class="conf-section">
+            <label style="color:cyan;">FINE PARTITA:</label>
+            <select id="cfg-end-type" onchange="updateCfgUI()">
+                <option value="time">TEMPO TOTALE DI GIOCO</option>
+                <option value="score">TARGET PUNTEGGIO (Minuti Totali)</option>
+                <option value="rounds">NUMERO ROUND (Solo Staffetta)</option>
+            </select>
+            <label id="lbl-end-val">VALORE (Minuti/Punti/Giri):</label><input type="number" id="cfg-end-val" value="30">
+        </div>
+
+        <div class="conf-section" style="border: 2px solid yellow;">
+            <div class="toggle-row" style="margin-top:0;">
+                <span class="toggle-label" style="color:yellow; font-weight:bold;">EVENTO ASSASSINIO</span>
+                <label class="switch"><input type="checkbox" id="ass-active"><span class="slider"></span></label>
+            </div>
+            
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label>INIZIO (Min-Max):</label>
+                    <div style="display:flex; gap:2px;"><input type="number" id="ass-min" value="5"><input type="number" id="ass-max" value="15"></div>
+                </div>
+                <div style="flex:1;">
+                    <label>DURATA CACCIA (Min):</label>
+                    <input type="number" id="ass-duration" value="5" style="border-color:orange; color:orange;">
+                </div>
+            </div>
+            
+            <div style="margin-top:10px; border-top:1px solid #555; padding-top:5px;">
+                <label>ROSTER GIOCATORI:</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="new-ass-player" placeholder="NOME">
+                    <button class="menu-btn btn-gray" style="width:auto; padding:5px 15px;" onclick="addRosterPlayer()">+</button>
+                </div>
+                <div id="roster-list" style="max-height:100px; overflow-y:auto; margin-top:5px; border:1px solid #333; font-size:12px;"></div>
+            </div>
+        </div>
+
+        <button class="menu-btn btn-red" onclick="startGame()">AVVIA GIOCO</button>
+    </div>
+
+    <div id="screen-game" class="view-screen">
+        <div id="capture-area"></div>
+    </div>
+
+    <div id="screen-spectator" class="view-screen">
+        <div id="spec-header" style="text-align:center; color:white; border-bottom:1px solid #333; margin-bottom:10px;">DASHBOARD</div>
+        <div id="spec-scores-dom">
+            <div class="dom-score ds-alpha" id="box-alpha">ALPHA<span id="score-alpha">00:00</span></div>
+            <div class="dom-score ds-bravo" id="box-bravo">BRAVO<span id="score-bravo">00:00</span></div>
+            <div class="dom-score ds-charlie" id="box-charlie">CHARLIE<span id="score-charlie">00:00</span></div>
+            <div class="dom-score ds-delta" id="box-delta">DELTA<span id="score-delta">00:00</span></div>
+        </div>
+        <div id="spec-grid"></div>
+        <button onclick="goHome()" class="menu-btn btn-gray" style="margin-top:auto">ESCI</button>
+    </div>
+
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue, update, onDisconnect, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+    const firebaseConfig = { apiKey: "AIzaSyAul-dk062-EGB5Hrt9nD_3ZFM-ZX0nUAs", authDomain: "softairbomb-f3dd3.firebaseapp.com", databaseURL: "https://softairbomb-f3dd3-default-rtdb.firebaseio.com", projectId: "softairbomb-f3dd3", storageBucket: "softairbomb-f3dd3.firebasestorage.app", messagingSenderId: "928886693758", appId: "1:928886693758:web:aab4ea114bc0486debdd2f", measurementId: "G-3ZHRFYLR4G" };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const myId = "DEV_" + Math.floor(Math.random() * 9000 + 1000);
+    
+    let gameState = { status: 'lobby', scores: {}, domStates: {} };
+    let holdTimer = null;
+    let captureTime = 5000;
+    let devName = localStorage.getItem('bomb_dev_name') || "OBIETTIVO " + Math.floor(Math.random()*10);
+    document.getElementById('dev-name').value = devName;
+    let playersData = {};
+    let lastOwner = 'neutral';
+    let lastState = 'lobby';
+    let roster = JSON.parse(localStorage.getItem('ass_roster')) || ["VIPER", "GHOST"];
+
+    onValue(ref(db, ".info/connected"), s => { if(s.val()) { onDisconnect(ref(db, 'players/' + myId)).remove(); updatePlayerInfo(); } });
+    onValue(ref(db, 'players'), s => { playersData = s.val() || {}; });
+    onValue(ref(db, 'game'), (snap) => {
+        gameState = snap.val() || { status: 'lobby', scores: {alpha:0,bravo:0,charlie:0,delta:0}, domStates: {} };
+        applyGameState();
+    });
+
+    setInterval(() => { 
+        if(gameState.status === 'running') {
+            updateTimers();
+            updateScoreBars();
+            if(gameState.masterId === myId) masterLogic();
+        }
+        if(document.getElementById('screen-spectator').classList.contains('active')) renderSpectatorUI();
+    }, 1000);
+
+    window.saveName = function() { devName = document.getElementById('dev-name').value.toUpperCase(); localStorage.setItem('bomb_dev_name', devName); updatePlayerInfo(); };
+    function updatePlayerInfo() { update(ref(db, 'players/' + myId), { id: myId, name: devName }); }
+
+    window.openSpectator = function() { showScreen('screen-spectator'); update(ref(db, 'players/' + myId), { isSpectator: true }); renderSpectatorUI(); };
+    window.goHome = function() { showScreen('screen-menu'); update(ref(db, 'players/' + myId), { isSpectator: false }); };
+
+    window.addRosterPlayer = function() {
+        let n = document.getElementById('new-ass-player').value.toUpperCase().trim();
+        if(n && !roster.includes(n)) { roster.push(n); updateRosterUI(); }
+        document.getElementById('new-ass-player').value = "";
+    };
+    window.removePlayer = function(idx) { roster.splice(idx, 1); updateRosterUI(); };
+    function updateRosterUI() {
+        localStorage.setItem('ass_roster', JSON.stringify(roster));
+        let div = document.getElementById('roster-list');
+        div.innerHTML = "";
+        roster.forEach((p, i) => {
+            div.innerHTML += `<div style="display:flex; justify-content:space-between; background:#222; padding:5px; border-bottom:1px solid #333; align-items:center;"><span style="color:#ddd">${p}</span><span onclick="removePlayer(${i})" style="color:#f55; cursor:pointer; font-weight:bold;">[X]</span></div>`;
+        });
+    }
+
+    window.updateCfgUI = function() {
+        let mode = document.getElementById('cfg-mode').value;
+        let endType = document.getElementById('cfg-end-type').value;
+        if(mode === 'sequence') {
+            document.getElementById('div-seq-opts').classList.remove('hidden');
+            document.querySelector('#cfg-end-type option[value="rounds"]').classList.remove('hidden');
+        } else {
+            document.getElementById('div-seq-opts').classList.add('hidden');
+            if(endType === 'rounds') document.getElementById('cfg-end-type').value = 'time';
+            document.querySelector('#cfg-end-type option[value="rounds"]').classList.add('hidden');
+        }
+    };
+
+    window.startGame = function() {
+        let numTeams = parseInt(document.getElementById('cfg-teams').value);
+        let mode = document.getElementById('cfg-mode').value;
+        let endType = document.getElementById('cfg-end-type').value;
+        let endVal = parseInt(document.getElementById('cfg-end-val').value);
+        let seqType = document.getElementById('cfg-seq-type').value;
+        let seqVal = parseInt(document.getElementById('cfg-seq-val').value);
+        
+        let assActive = document.getElementById('ass-active').checked;
+        let assConf = { active: false };
+        let assNext = null;
+        if(assActive) {
+            let min = parseInt(document.getElementById('ass-min').value);
+            let max = parseInt(document.getElementById('ass-max').value);
+            let dur = parseInt(document.getElementById('ass-duration').value) || 5;
+            let firstDelay = (min * 60000) + Math.random() * ((max - min) * 60000);
+            assConf = { active: true, min: min, max: max, duration: dur, hasTriggered: false };
+            assNext = Date.now() + firstDelay;
+        }
+
+        let config = { teams: numTeams, mode: mode, endType: endType, endVal: endVal, seqType: seqType, seqVal: seqVal };
+        
+        get(ref(db, 'players')).then(snap => {
+            let p = snap.val() || {};
+            let ids = Object.keys(p).filter(k => !p[k].isSpectator);
+            
+            if(ids.length === 0 && mode !== 'master') { alert("Nessuna postazione attiva trovata!"); return; }
+
+            let domStates = {};
+            ids.forEach(pid => domStates[pid] = { owner: 'neutral', holdTime: 0 });
+
+            let payload = {
+                status: 'running',
+                startTime: Date.now(),
+                masterId: myId,
+                config: config,
+                scores: { alpha:0, bravo:0, charlie:0, delta:0 },
+                domStates: domStates,
+                assConfig: assConf,
+                assNext: assNext,
+                assRoster: roster,
+                rotation: { list: ids, idx: 0, stepStart: Date.now(), round: 0 }
+            };
+            update(ref(db, 'game'), payload);
+        });
+    };
+
+    function masterLogic() {
+        // V240: TRIGGER ASSASSIN
+        if(gameState.assConfig && gameState.assConfig.active && !gameState.assConfig.hasTriggered && gameState.assNext && Date.now() > gameState.assNext) {
+            triggerAssassin();
+        }
+        
+        // V240: FREEZE LOGIC - If Assassin active, STOP SCORING AND ROTATION
+        if(gameState.assassin && gameState.assassin.active) {
+            if(gameState.assassin.endTime && Date.now() > gameState.assassin.endTime) {
+                resolveAssassin(false); // Timeout logic
+            }
+            return; // FREEZE THE GAME LOOP HERE
+        }
+
+        let conf = gameState.config;
+        let now = Date.now();
+        let updates = {};
+        let activeScore = true;
+
+        if(activeScore) {
+            let s = { ...gameState.scores };
+            let states = gameState.domStates || {};
+            let activeDevId = null;
+            if(conf.mode === 'sequence' && gameState.rotation && gameState.rotation.list && gameState.rotation.list.length > 0) {
+                activeDevId = gameState.rotation.list[gameState.rotation.idx];
+            }
+
+            Object.entries(states).forEach(([pid, st]) => {
+                if(conf.mode === 'sequence' && pid !== activeDevId) return;
+
+                if(st.owner !== 'neutral') {
+                    s[st.owner] = (s[st.owner] || 0) + 1; 
+                    if(conf.mode === 'sequence' && conf.seqType === 'conquest') {
+                        let ht = (st.holdTime || 0) + 1;
+                        updates[`game/domStates/${pid}/holdTime`] = ht;
+                        if(ht >= (conf.seqVal * 60)) nextStep(updates);
+                    }
+                }
+            });
+            updates['game/scores'] = s;
+
+            if(conf.endType === 'score') {
+                let target = conf.endVal * 60; 
+                if(s.alpha >= target || s.bravo >= target || s.charlie >= target || s.delta >= target) {
+                    updates['game/status'] = 'ended';
+                }
+            }
+        }
+
+        if(conf.mode === 'sequence' && conf.seqType === 'time') {
+            let elapsed = (now - gameState.rotation.stepStart) / 1000;
+            if(elapsed >= (conf.seqVal * 60)) nextStep(updates);
+        }
+
+        if(conf.endType === 'time') {
+            if(now >= gameState.startTime + (conf.endVal * 60000)) updates['game/status'] = 'ended';
+        } else if (conf.endType === 'rounds' && conf.mode === 'sequence') {
+            if(gameState.rotation.round >= conf.endVal) updates['game/status'] = 'ended';
+        }
+
+        if(Object.keys(updates).length > 0) update(ref(db), updates);
+    }
+
+    function triggerAssassin() {
+        let list = gameState.assRoster || roster;
+        if(list.length === 0) list = ["UNKNOWN"];
+        let t = list[Math.floor(Math.random()*list.length)];
+        
+        let p = playersData || {};
+        let activeIds = Object.keys(p).filter(k => !p[k].isSpectator);
+        let baseName = "BASE";
+        if(activeIds.length > 0) {
+            let rndId = activeIds[Math.floor(Math.random()*activeIds.length)];
+            baseName = p[rndId].name;
+        }
+
+        let durationMs = (gameState.assConfig.duration || 5) * 60000;
+        let endT = Date.now() + durationMs;
+
+        speak("Attenzione, Attenzione. Missione prioritaria. Scortare " + t + " alla postazione " + baseName + ".");
+        
+        let updates = {};
+        updates['game/assassin'] = {active:true, target:t, targetBase: baseName, startTime:Date.now(), endTime: endT};
+        updates['game/assConfig/hasTriggered'] = true;
+        update(ref(db), updates);
+    }
+
+    window.resolveAssassin = function(killed) {
+        if(killed) speak("Attenzione, Attenzione. Giocatore Eliminato.");
+        else speak("Attenzione, Attenzione. Bersaglio Salvo.");
+        
+        document.getElementById('ass-overlay').style.display = 'none'; 
+        
+        // V240: COMPENSATION LOGIC - ADD LOST TIME BACK
+        let elapsed = Date.now() - (gameState.assassin.startTime || Date.now());
+        let updates = {};
+        updates['game/assassin/active'] = false;
+        updates['game/assNext'] = null; // Ensure no loop
+        
+        // Push start time forward so game timer resumes correctly
+        updates['game/startTime'] = gameState.startTime + elapsed;
+        if(gameState.rotation) {
+            updates['game/rotation/stepStart'] = gameState.rotation.stepStart + elapsed;
+        }
+
+        update(ref(db), updates);
+    };
+
+    function nextStep(ups) {
+        let r = gameState.rotation;
+        let nextIdx = r.idx + 1;
+        let nextRound = r.round;
+        if(nextIdx >= r.list.length) { nextIdx = 0; nextRound++; }
+        
+        ups['game/rotation/idx'] = nextIdx;
+        ups['game/rotation/round'] = nextRound;
+        ups['game/rotation/stepStart'] = Date.now();
+        let nextId = r.list[nextIdx];
+        ups[`game/domStates/${nextId}/owner`] = 'neutral';
+        ups[`game/domStates/${nextId}/holdTime`] = 0;
+        
+        // V240: SPECIFIC NAME ANNOUNCEMENT
+        let pName = (playersData[nextId] && playersData[nextId].name) ? playersData[nextId].name : "SUCCESSIVA";
+        speak("Attenzione. Postazione " + pName + " Attiva.");
+    }
+
+    function applyGameState() {
+        if(gameState.status === 'lobby') {
+            if(!document.getElementById('screen-spectator').classList.contains('active')) {
+                showScreen('screen-menu');
+            }
+            document.getElementById('page-end').style.display = 'none';
+            document.getElementById('page-locked').style.display = 'none';
+            document.getElementById('ass-overlay').style.display = 'none';
+            document.getElementById('score-bars-container').classList.add('hidden');
+            document.body.className = '';
+            updateLCD("SISTEMA", "PRONTO", "");
+            lastState = 'lobby';
+        }
+        else if(gameState.status === 'running') {
+            if(gameState.assassin && gameState.assassin.active) {
+                document.getElementById('ass-overlay').style.display = 'flex';
+                document.getElementById('ass-target').innerText = gameState.assassin.target;
+                document.getElementById('ass-dest').innerText = "DESTINAZIONE: " + (gameState.assassin.targetBase || "BASE");
+            } else {
+                document.getElementById('ass-overlay').style.display = 'none';
+            }
+
+            if(!document.getElementById('screen-spectator').classList.contains('active')) {
+                let isLocked = false;
+                if(gameState.config.mode === 'sequence') {
+                    let r = gameState.rotation;
+                    if(!r || !r.list || r.list[r.idx] !== myId) isLocked = true;
+                }
+                
+                if(isLocked) {
+                    document.getElementById('page-locked').style.display = 'flex';
+                    document.getElementById('score-bars-container').classList.add('hidden');
+                    lastState = 'locked';
+                } else {
+                    document.getElementById('page-locked').style.display = 'none';
+                    showScreen('screen-game');
+                    document.getElementById('score-bars-container').classList.remove('hidden');
+                    renderButtons();
+                    renderDeviceState();
+                    
+                    if(lastState === 'locked' || lastState === 'lobby') {
+                        speak("Attenzione, Attenzione. Postazione " + devName + " Attiva.");
+                    }
+                    lastState = 'active';
+                }
+            }
+        }
+        else if(gameState.status === 'ended') {
+            document.getElementById('page-locked').style.display = 'none';
+            if(!document.getElementById('screen-spectator').classList.contains('active')) {
+                document.getElementById('page-end').style.display = 'flex';
+                document.getElementById('score-bars-container').classList.add('hidden');
+            }
+            document.getElementById('ass-overlay').style.display = 'none';
+            
+            if(lastState !== 'ended') {
+                speak("Attenzione, Attenzione. Fine Partita.");
+                lastState = 'ended';
+            }
+            
+            let s = gameState.scores;
+            let teams = { alpha: s.alpha, bravo: s.bravo };
+            if(gameState.config.teams >= 3) teams.charlie = s.charlie;
+            if(gameState.config.teams >= 4) teams.delta = s.delta;
+            
+            let sorted = Object.entries(teams).sort((a,b) => b[1] - a[1]);
+            let winner = "PAREGGIO";
+            if(sorted[0][1] > sorted[1][1]) winner = "VITTORIA " + sorted[0][0].toUpperCase();
+            
+            document.getElementById('end-winner').innerText = winner;
+            document.getElementById('end-scores').innerText = sorted.map(x => `${x[0].charAt(0).toUpperCase()}:${Math.floor(x[1]/60)}'`).join(' - ');
+        }
+    }
+
+    function updateScoreBars() {
+        let cont = document.getElementById('score-bars-container');
+        if(cont.classList.contains('hidden')) return;
+        
+        let teamsList = ['alpha', 'bravo'];
+        if(gameState.config.teams >= 3) teamsList.push('charlie');
+        if(gameState.config.teams >= 4) teamsList.push('delta');
+        
+        if(cont.childElementCount !== teamsList.length) {
+            cont.innerHTML = "";
+            teamsList.forEach(t => {
+                cont.innerHTML += `
+                <div class="sb-row">
+                    <div class="sb-label c-${t}">${t.charAt(0).toUpperCase()}</div>
+                    <div class="sb-track"><div class="sb-fill fill-${t}" id="bar-${t}"></div></div>
+                    <div class="sb-val" id="val-${t}">0</div>
+                </div>`;
+            });
+        }
+
+        let max = 100;
+        if(gameState.config.endType === 'score') max = gameState.config.endVal * 60;
+        else max = (gameState.config.endVal || 30) * 60;
+
+        teamsList.forEach(t => {
+            let s = gameState.scores[t] || 0;
+            let pct = Math.min(100, (s / max) * 100);
+            document.getElementById(`bar-${t}`).style.width = pct + "%";
+            document.getElementById(`val-${t}`).innerText = fmtS(s);
+        });
+    }
+
+    function renderButtons() {
+        let area = document.getElementById('capture-area');
+        if(area.childElementCount > 0) return; 
+        
+        let t = gameState.config.teams || 2;
+        let teams = ['alpha', 'bravo'];
+        if(t >= 3) teams.push('charlie');
+        if(t >= 4) teams.push('delta');
+        
+        area.innerHTML = "";
+        teams.forEach(tm => {
+            let btn = document.createElement('div');
+            btn.className = `cap-btn b-${tm}`;
+            btn.innerText = tm;
+            btn.onmousedown = () => btnDown(tm);
+            btn.ontouchstart = (e) => { e.preventDefault(); btnDown(tm); };
+            btn.onmouseup = btnUp;
+            btn.ontouchend = btnUp;
+            area.appendChild(btn);
+        });
+    }
+
+    function renderDeviceState() {
+        let st = (gameState.domStates && gameState.domStates[myId]) ? gameState.domStates[myId] : { owner: 'neutral' };
+        document.body.className = 'owner-' + st.owner;
+        updateLCD("CONTROLLO", st.owner === 'neutral' ? "NEUTRALE" : st.owner.toUpperCase(), "");
+        
+        if(st.owner !== lastOwner && st.owner !== 'neutral') {
+            speak("Attenzione, Attenzione. Postazione " + devName + " conquistata da " + st.owner + ".");
+        }
+        lastOwner = st.owner;
+    }
+    
+    function fmtS(sec) { 
+        var m=Math.floor(sec/60); 
+        var s=sec%60; 
+        return (m<10?"0":"")+m+":"+(s<10?"0":"")+s; 
+    }
+
+    window.btnDown = function(team) {
+        if(gameState.status !== 'running') return;
+        // V240: PREVENT CAPTURE DURING ASSASSIN
+        if(gameState.assassin && gameState.assassin.active) return;
+
+        let st = gameState.domStates[myId] || { owner: 'neutral' };
+        if(st.owner === team) return;
+
+        let b = document.getElementById('prog-bar-box'); b.style.display='block';
+        let f = document.getElementById('prog-bar-fill'); f.style.width='0%';
+        let colors = { alpha:'#f55', bravo:'#55f', charlie:'#0f0', delta:'#ff0' };
+        f.style.background = colors[team];
+        f.style.boxShadow = `0 0 15px ${colors[team]}`;
+
+        let s = Date.now();
+        holdTimer = setInterval(()=>{
+            let p = ((Date.now()-s)/captureTime)*100;
+            f.style.width = p+'%';
+            if(p>=100) { 
+                clearInterval(holdTimer); b.style.display='none';
+                captureDevice(team);
+            }
+        }, 50);
+    };
+    window.btnUp = function() { clearInterval(holdTimer); document.getElementById('prog-bar-box').style.display='none'; };
+
+    function captureDevice(team) {
+        update(ref(db, `game/domStates/${myId}`), { owner: team, holdTime: 0 });
+    }
+
+    function updateTimers() {
+        if(gameState.assassin && gameState.assassin.active) {
+             let remaining = 0;
+             if(gameState.assassin.endTime) {
+                 remaining = Math.ceil((gameState.assassin.endTime - Date.now())/1000);
+                 if(remaining < 0) remaining = 0;
+             }
+             document.getElementById('ass-timer').innerText = fmt(remaining);
+             // V240: PAUSE MAIN TIMER VISUALLY
+             document.getElementById('lcd-timer-big').innerText = "PAUSED";
+             return;
+        }
+
+        let txt = "GAME: --:--";
+        if(gameState.config.endType === 'time') {
+            let diff = Math.ceil(((gameState.startTime + gameState.config.endVal*60000) - Date.now()) / 1000);
+            if(diff < 0) diff = 0;
+            txt = `GAME ${fmt(diff)}`;
+        } else {
+            txt = `GAME --:--`;
+        }
+
+        if(gameState.config.mode === 'sequence' && gameState.config.seqType === 'time') {
+            let elapsed = (Date.now() - gameState.rotation.stepStart) / 1000;
+            let remain = Math.ceil((gameState.config.seqVal * 60) - elapsed);
+            if(remain < 0) remain = 0;
+            txt += ` | NEXT ${fmt(remain)}`;
+        }
+
+        document.getElementById('lcd-timer-big').innerText = txt;
+    }
+
+    window.speak = (t) => { window.speechSynthesis.cancel(); let u = new SpeechSynthesisUtterance(t); u.lang='it-IT'; u.rate=0.9; window.speechSynthesis.speak(u); };
+    window.openConf = function() { showScreen('screen-conf'); updateRosterUI(); };
+    function showScreen(id) { document.querySelectorAll('.view-screen').forEach(e => e.classList.remove('active')); document.getElementById(id).classList.add('active'); document.getElementById('capture-area').innerHTML=""; }
+    function updateLCD(l1, l2, l3) { document.getElementById('lcd-1').innerText = l1; document.getElementById('lcd-2').innerText = l2; document.getElementById('lcd-3').innerText = l3; }
+    function fmt(s) { var m=Math.floor(s/60); var sc=s%60; return (m<10?"0":"")+m+":"+(sc<10?"0":"")+sc; }
+    window.adminForceReset = function() { if(prompt("PWD")===document.getElementById('admin-pass').value) update(ref(db,'game'), {status:'lobby', scores:{alpha:0,bravo:0,charlie:0,delta:0}, domStates:{}}); };
+
+    function renderSpectatorUI() {
+        let sc = gameState.scores;
+        document.getElementById('score-alpha').innerText = fmtS(sc.alpha);
+        document.getElementById('score-bravo').innerText = fmtS(sc.bravo);
+        document.getElementById('score-charlie').innerText = fmtS(sc.charlie);
+        document.getElementById('score-delta').innerText = fmtS(sc.delta);
+        
+        let t = (gameState.config && gameState.config.teams) ? gameState.config.teams : 2;
+        if(t < 3) { document.getElementById('box-charlie').classList.add('hidden-score'); } else document.getElementById('box-charlie').classList.remove('hidden-score');
+        if(t < 4) { document.getElementById('box-delta').classList.add('hidden-score'); } else document.getElementById('box-delta').classList.remove('hidden-score');
+
+        let grid = document.getElementById('spec-grid'); grid.innerHTML = "";
+        
+        let activePlayers = Object.keys(playersData).filter(k => !playersData[k].isSpectator);
+
+        if(activePlayers.length === 0) {
+            grid.innerHTML = "<div style='color:#666; text-align:center; width:100%;'>NESSUNA POSTAZIONE ATTIVA</div>";
+            return;
+        }
+
+        activePlayers.forEach(pid => {
+            let st = (gameState.domStates && gameState.domStates[pid]) ? gameState.domStates[pid] : { owner: 'neutral' };
+            let isLocked = false;
+            if(gameState.config && gameState.config.mode === 'sequence') {
+                if(gameState.rotation && gameState.rotation.list[gameState.rotation.idx] !== pid) isLocked = true;
+            }
+            
+            let name = playersData[pid].name;
+            let statusClass = isLocked ? "sp-locked" : "sp-active-" + st.owner;
+            let statusText = isLocked ? "BLOCCATA" : (st.owner === 'neutral' ? "NEUTRALE" : st.owner.toUpperCase());
+            
+            grid.innerHTML += `
+            <div class="spec-card">
+                <div class="spec-card-left">${name}</div>
+                <div class="spec-card-right ${statusClass}">${statusText}</div>
+            </div>`;
+        });
+    }
+</script>
+</body>
+</html>
