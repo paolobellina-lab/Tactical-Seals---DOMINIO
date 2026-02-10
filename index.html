@@ -737,8 +737,60 @@
             </div>`;
         });
     }
-</script>
+// --- GESTIONE SCHERMO INTERO E BLOCCO SOSPENSIONE ---
+    
+    let wakeLock = null;
+
+    // Funzione per richiedere che lo schermo resti acceso
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock attivo: Schermo non si spegnerà.');
+                
+                // Se l'utente minimizza e riapre l'app, riattiva il blocco
+                wakeLock.addEventListener('release', () => {
+                    console.log('Wake Lock rilasciato');
+                });
+            } catch (err) {
+                console.error(`${err.name}, ${err.message}`);
+            }
+        }
+    }
+
+    // Riattiva il blocco se la pagina torna visibile (es. cambi app e torni indietro)
+    document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') {
+            await requestWakeLock();
+        }
+    });
+
+    // Funzione per forzare schermo intero (nasconde barra di stato in alto)
+    function openFullscreen() {
+        let elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => console.log(err));
+        } else if (elem.webkitRequestFullscreen) { /* Safari */
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { /* IE11 */
+            elem.msRequestFullscreen();
+        }
+    }
+
+    // Funzione "Master" che attiva tutto (Audio + Schermo + WakeLock)
+    window.activateImmersion = function() {
+        // 1. Attiva Audio
+        if(typeof initAudio === "function") initAudio(); 
+        if('speechSynthesis' in window) window.speechSynthesis.resume();
+
+        // 2. Attiva Schermo Intero
+        openFullscreen();
+
+        // 3. Blocca lo spegnimento schermo
+        requestWakeLock();
+    };</script>
 </body>
 
 </html>
+
 
