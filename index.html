@@ -261,6 +261,34 @@
     // GESTIONE ANNUNCI GLOBALI
     let lastAnnouncementTs = null;
 
+    // --- WAKE LOCK E FULLSCREEN GLOBALE AUTOMATICO ---
+    let wakeLock = null;
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
+        }
+    }
+
+    function enableImmersiveMode() {
+        if (!document.fullscreenElement) {
+            try { document.documentElement.requestFullscreen().catch(e => {}); } catch(e) {}
+        }
+        if (wakeLock === null) {
+            requestWakeLock();
+        }
+    }
+
+    // Attiva Fullscreen e Wake Lock al primissimo click su qualsiasi punto/pulsante dell'app
+    document.addEventListener('click', enableImmersiveMode);
+    document.addEventListener('touchstart', enableImmersiveMode, {passive: true});
+    
+    document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') {
+            await requestWakeLock();
+        }
+    });
+    // --------------------------------------------------
+
     onValue(ref(db, ".info/connected"), s => { if(s.val()) { onDisconnect(ref(db, 'players/' + myId)).remove(); updatePlayerInfo(); } });
     onValue(ref(db, 'players'), s => { playersData = s.val() || {}; });
     
@@ -374,7 +402,7 @@
                 assNext: assNext,
                 assRoster: roster,
                 rotation: { list: ids, idx: 0, stepStart: Date.now(), round: 0 },
-                // ANNUNCIO GLOBALE ALL'AVVIO (Nome postazione al posto di Inizio Partita)
+                // ANNUNCIO GLOBALE ALL'AVVIO
                 announcement: { text: annText, ts: Date.now() } 
             };
             update(ref(db, 'game'), payload);
@@ -556,7 +584,6 @@
             }
             document.getElementById('ass-overlay').style.display = 'none';
             
-            // Questo comando locale è mantenuto per far suonare la fine a tutti all'istante
             if(lastState !== 'ended') {
                 speak("Attenzione, Attenzione. Fine Partita.");
                 lastState = 'ended';
@@ -645,7 +672,7 @@
 
     window.btnDown = function(team) {
         if(gameState.status !== 'running') return;
-        if(gameState.assassin && gameState.assassin.active) return; // Blocco cattura durante Assassinio
+        if(gameState.assassin && gameState.assassin.active) return;
 
         let st = gameState.domStates[myId] || { owner: 'neutral' };
         if(st.owner === team) return;
@@ -673,7 +700,6 @@
         updates[`game/domStates/${myId}/owner`] = team;
         updates[`game/domStates/${myId}/holdTime`] = 0;
         
-        // MESSAGGIO VOCALE INVIATO A TUTTI
         updates[`game/announcement`] = { text: `Attenzione. Postazione ${devName} conquistata da ${team}.`, ts: Date.now() };
         
         update(ref(db), updates);
